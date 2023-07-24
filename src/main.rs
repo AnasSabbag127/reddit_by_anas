@@ -1,3 +1,5 @@
+mod api;
+mod model;
 
 use actix_web::{web,App,HttpServer,HttpResponse,Responder,get};
 use actix_web::middleware::Logger;
@@ -5,6 +7,7 @@ use dotenv::dotenv;
 use env_logger;
 use sqlx::{postgres::PgPoolOptions,Pool,Postgres};
 
+use api::users;
 #[get("/health_check")]
 async fn health_check()->impl Responder{
     HttpResponse::Ok()
@@ -50,7 +53,7 @@ async fn main() -> std::io::Result<()> {
         .service(health_check)
         .wrap(Logger::default())
         .app_data(web::Data::new(AppState{db:pool.clone()}))
-        
+        .configure(users::config)
     })
     .bind("127.0.0.1:8000")?
     .run()

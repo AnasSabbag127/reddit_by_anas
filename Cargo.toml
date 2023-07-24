@@ -10,4 +10,8 @@ actix-web = "4.3.1"
 dotenv = "0.15.0"
 env_logger = "0.10.0"
 
+
 sqlx = { version = "0.6.3", features = ["runtime-actix-rustls", "postgres", "uuid", "migrate", "macros"] }
+serde = { version = "^1", features = ["derive"] }
+uuid = { version = "1.4.1", features = ["serde"] }
+log = "0.4.19"

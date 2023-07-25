@@ -7,7 +7,8 @@ use dotenv::dotenv;
 use env_logger;
 use sqlx::{postgres::PgPoolOptions,Pool,Postgres};
 
-use api::users;
+use api::{users,post_info};
+
 #[get("/health_check")]
 async fn health_check()->impl Responder{
     HttpResponse::Ok()
@@ -54,6 +55,7 @@ async fn main() -> std::io::Result<()> {
         .wrap(Logger::default())
         .app_data(web::Data::new(AppState{db:pool.clone()}))
         .configure(users::config)
+        .configure(post_info::config)
     })
     .bind("127.0.0.1:8000")?
     .run()

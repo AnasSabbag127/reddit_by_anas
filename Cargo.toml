@@ -15,3 +15,4 @@ sqlx = { version = "0.6.3", features = ["runtime-actix-rustls", "postgres", "uui
 serde = { version = "^1", features = ["derive"] }
 uuid = { version = "1.4.1", features = ["serde"] }
 log = "0.4.19"
+serde_json = "1.0.103"

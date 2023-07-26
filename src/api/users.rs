@@ -29,7 +29,7 @@ pub async fn create_user(
         .await;
     
     match query_result{
-        Ok(user) =>{ return HttpResponse::Ok();},
+        Ok(_user) =>{ return HttpResponse::Ok();},
         Err(_) => {
         return HttpResponse::InternalServerError();
         }

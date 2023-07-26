@@ -25,31 +25,37 @@ pub async fn post_text(
     .fetch_one(&data.db)
     .await;
 
+    match query_result{
+        Ok(_res) => { return HttpResponse::Ok();},
+        Err(_) => {  return HttpResponse::InternalServerError();}
+    }
 
-    HttpResponse::Ok()
+   
 }
 
-#[get("/get_post/{id}")]
+#[get("/get_post/{post_id}")]
 pub async fn get_post(
     path:web::Path<Uuid>,
     data:web::Data<AppState>
 ) -> impl Responder{
 
-    // let post_id = path.into_inner();
+    let post_id = path.into_inner();
+    let query_result = sqlx::query_as!(
+        Post,
+        "select * from posts where id = $1",
+        post_id)
+        .fetch_one(&data.db)
+        .await;
 
-    // let query_result = sqlx::query_as!(
-    //     Post,
-    //     "select * from posts where id = $1",
-    //     id)
-    //     .fetch_one(&data.db)
-    //     .await;
-
-    HttpResponse::Ok()
+    match query_result{
+        Ok(query_ok) => HttpResponse::Ok().json(query_ok),
+        Err(_) => HttpResponse::NotFound().json("no post found"),
+    }
 }
 
 pub fn config(conf: &mut web::ServiceConfig){
     let scope = web::scope("/user_post")
-        .service(post_text);
-        // .service(get_post);
+        .service(post_text)
+        .service(get_post);
     conf.service(scope);
 } 

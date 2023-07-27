@@ -20,15 +20,15 @@ CREATE TABLE
         REFERENCES users(user_id)
     );
 
--- CREATE TABLE 
---     IF NOT EXISTS comments(
---         id Uuid PRIMARY KEY NOT NULL DEFAULT (uuid_generate_v4()),
---         user_id Uuid,
---         post_id Uuid,
---         comments VARCHAR(100),
---         CONSTRAINT fk_post
---         FOREIGN KEY(user_id)
---         FOREIGN KEY(post_id)
---         REFERENCES users(user_id)
---         REFERENCES posts(id)
---     );
+CREATE TABLE IF NOT EXISTS comments(
+    id UUID PRIMARY KEY NOT NULL DEFAULT (uuid_generate_v4()),
+    user_id UUID,
+    post_id UUID,
+    comment VARCHAR(100) NOT NULL,
+    CONSTRAINT fk_user
+        FOREIGN KEY(user_id)
+        REFERENCES users(user_id),
+    CONSTRAINT fk_post
+        FOREIGN KEY(post_id) 
+        REFERENCES posts(id)
+);

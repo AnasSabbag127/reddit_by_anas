@@ -5,24 +5,25 @@ use serde::{Serialize,Deserialize};
 
 #[derive(Serialize,Deserialize)]
 pub struct CommentInputData{
+    user_id: Uuid,
+    post_id: Uuid,
     comment: String
 }
 
 
 
-#[post("/post_comment/{post_id}")]
+#[post("/post_comment")]
 async fn post_comment(
     body:web::Json<CommentInputData>,
-    path:web::Path<Uuid>,
     data:web::Data<AppState>
 )->impl Responder{
 
-    let at_post_id = path.into_inner();
     let query_result = sqlx::query_as!(
         Comments,
-        "INSERT INTO comments(comment,post_id) VALUES($1,$2)",
-        body.comment,
-        at_post_id
+        "INSERT INTO comments(user_id,post_id,comment) VALUES($1,$2,$3) returning *",
+        body.user_id,
+        body.post_id,
+        body.comment,    
     )
     .fetch_one(&data.db)
     .await;
@@ -67,7 +68,7 @@ pub async fn delete_comment(
 
     let comment_id = path.into_inner();
     let query_result = sqlx::query!(
-        "DELETE FROM comments WHERE id = $1 ",
+        "DELETE FROM comments WHERE id = $1 returning *",
         comment_id
     )
     .fetch_one(&data.db)

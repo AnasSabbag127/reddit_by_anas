@@ -26,8 +26,8 @@ pub struct AppState{
 async fn main() -> std::io::Result<()> {
     println!("Hello, world!");
 
-    if std::env::var_os("RUST_LOg").is_none(){
-        std::env::set_var("RUST_LOG", "actix_web=info");
+    if std::env::var_os("RUST_LOG").is_none(){
+        std::env::set_var("RUST_LOG", "info");
     }
     dotenv().ok();
     env_logger::init();
@@ -48,7 +48,7 @@ async fn main() -> std::io::Result<()> {
                     }
                 };
     
-    println!("DATABASE CONNECTED ");
+    log::info!("DATABASE CONNECTED ");
 
     HttpServer::new(move||{
         App::new()

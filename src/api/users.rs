@@ -29,13 +29,11 @@ pub async fn create_user(
     
     match query_result{
         Ok(_user) =>{ 
-            // log::info!(" user is adding...");
-            // return HttpResponse::Ok();
-            log::info!("New user details have been saved");
-        
+            log::info!("New user details have been saved");        
             return HttpResponse::Ok();
         },
-        Err(_) => {
+        Err(err) => {
+            log::info!("Error :{}",err);
         return HttpResponse::InternalServerError();
         }
     }
@@ -49,7 +47,7 @@ pub async fn get_user(
 ) -> impl Responder {
     
     let user_id = path.into_inner();
-    log::info!(" getting the user infomation with user_id {} ",user_id);
+    log::info!(" getting the user infomation with user_id: {} ",user_id);
     
     let query_result = sqlx::query_as!(
         User,
@@ -60,8 +58,14 @@ pub async fn get_user(
         .await;
 
     match query_result{   
-        Ok(users) => HttpResponse::Ok().json(users),
-        Err(_) => HttpResponse::NotFound().json("No user found invalid id : "),
+        Ok(users) => {
+            log::info!("user info ok  ...");
+            HttpResponse::Ok().json(users)
+        },
+        Err(err) => {
+            log::info!("Error: {} and INVALID USER ID: {}",err,user_id);
+            HttpResponse::NotFound().json("No user found invalid id : ")
+        },
     }
 
 
@@ -72,8 +76,9 @@ pub async fn delete_user(
     path:web::Path<Uuid>,
     data:web::Data<AppState>
 ) ->impl Responder{
-
+    
     let user_id = path.into_inner();
+    log::info!("deleting user details of user_id : {}",user_id);
     let query_result = sqlx::query!(
         "DELETE FROM users WHERE user_id = $1 returning *",
         user_id
@@ -82,8 +87,14 @@ pub async fn delete_user(
     .await;
 
     match query_result{
-        Ok(_query) => return  HttpResponse::Ok(),
-        Err(_) =>  {return HttpResponse::InternalServerError()},// here i can't the id not found error ...?
+        Ok(_query) => {
+            log::info!("USER DELETED..");
+            return  HttpResponse::Ok()
+        },
+        Err(err) =>  {
+            log::info!("ERROR:{} IN DELETION INVALID USER ID : {} ",err,user_id);
+            return HttpResponse::InternalServerError()
+        },// here i can't the id not found error ...?
     }
   
 }

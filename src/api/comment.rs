@@ -17,7 +17,7 @@ async fn post_comment(
     body:web::Json<CommentInputData>,
     data:web::Data<AppState>
 )->impl Responder{
-
+    log::info!("adding a New comment :");
     let query_result = sqlx::query_as!(
         Comments,
         "INSERT INTO comments(user_id,post_id,comment) VALUES($1,$2,$3) returning *",
@@ -29,8 +29,14 @@ async fn post_comment(
     .await;
 
     match query_result{
-        Ok(_comment) => return HttpResponse::Ok(),
-        Err(_) => return HttpResponse::InternalServerError(),
+        Ok(_comment) => {
+            log::info!("new comment is added");
+            return HttpResponse::Ok()
+        },
+        Err(err) => {
+            log::info!("Error : {}",err);
+            return HttpResponse::InternalServerError()
+        },
     }
 
 }
@@ -43,6 +49,7 @@ async fn get_comments(
 ) -> impl Responder{
 
     let comment_id = path.into_inner();
+    log::info!("getting the comment info of comment id : {} ",comment_id);
     let query_result = sqlx::query_as!(
         Comments,
         "SELECT * FROM comments where id = $1",
@@ -52,9 +59,11 @@ async fn get_comments(
     .await;
     match query_result{
         Ok(comment)=>{
+            log::info!("comment info is showing...");
             HttpResponse::Ok().json(comment)
         },
-        Err(_err)=>{
+        Err(err)=>{
+            log::info!("Error : {} ",err);
             HttpResponse::NotFound().json("comment does not exists with that id : ")
         }
     }
@@ -67,6 +76,7 @@ pub async fn delete_comment(
 ) ->impl Responder{
 
     let comment_id = path.into_inner();
+    log::info!("deleting the comment of comment id :{} ",comment_id);
     let query_result = sqlx::query!(
         "DELETE FROM comments WHERE id = $1 returning *",
         comment_id
@@ -75,8 +85,14 @@ pub async fn delete_comment(
     .await;
 
     match query_result{
-        Ok(_query) => return  HttpResponse::Ok(),
-        Err(_) =>  {return HttpResponse::InternalServerError()},// here i can't the id not found error ...?
+        Ok(_query) => {
+            log::info!("comment deleted ");
+            return  HttpResponse::Ok()
+        },
+        Err(err) =>  {
+            log::info!("Error {} ",err);
+            return HttpResponse::InternalServerError()
+        },
     }
   
 }

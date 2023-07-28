@@ -18,7 +18,8 @@ pub async fn post_text(
 ) -> impl Responder{
 
     let by_user_id = path.into_inner();
-    
+    log::info!("adding a new post in database by user id : {} ",by_user_id);
+
     let query_result = sqlx::query_as!(
         Post,
         "INSERT INTO posts(post_title,post_text,user_id) VALUES($1,$2,$3) returning *",
@@ -30,8 +31,14 @@ pub async fn post_text(
     .await;
 
     match query_result{
-        Ok(_res) => { return HttpResponse::Ok();},
-        Err(_) => {  return HttpResponse::InternalServerError();}
+        Ok(_res) => { 
+            log::info!("New post details have been saved");
+            return HttpResponse::Ok();
+        },
+        Err(err) => {  
+            log::info!("Error : {}",err);
+            return HttpResponse::InternalServerError();
+        }
     }
 
    
@@ -44,6 +51,7 @@ pub async fn get_post(
 ) -> impl Responder{
 
     let post_id = path.into_inner();
+    log::info!(" getting the post information with post_id: {} ",post_id);
     let query_result = sqlx::query_as!(
         Post,
         "select * from posts where id = $1",
@@ -52,8 +60,14 @@ pub async fn get_post(
         .await;
 
     match query_result{
-        Ok(query_ok) => HttpResponse::Ok().json(query_ok),
-        Err(_) => HttpResponse::NotFound().json("no post found"),
+        Ok(query_ok) => {
+            log::info!("post is showing..");
+            HttpResponse::Ok().json(query_ok)
+        },
+        Err(err) => {
+            log::info!("Error: {} and INVALID post ID: {} ",err,post_id);
+            HttpResponse::NotFound().json("no post found")
+        },
     }
 }
 
@@ -64,6 +78,7 @@ pub async fn delete_post(
 ) ->impl Responder{
 
     let post_id = path.into_inner();
+    log::info!("deleting post of post_id : {}",post_id);
     let query_result = sqlx::query!(
         "DELETE FROM posts WHERE id = $1 RETURNING *",
         post_id
@@ -72,8 +87,14 @@ pub async fn delete_post(
     .await;
 
     match query_result{
-        Ok(_query) => return  HttpResponse::Ok(),
-        Err(_) =>  {return HttpResponse::InternalServerError()},// here i can't return id not found error ...?
+        Ok(_query) => {
+            log::info!("POST DELETED...");
+            return  HttpResponse::Ok()
+        },
+        Err(err) =>  {
+            log::info!("Error : {} ",err);
+            return HttpResponse::InternalServerError()
+        },// here i can't return id not found error ...?
     }
   
 }

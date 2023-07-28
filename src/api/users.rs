@@ -1,7 +1,8 @@
 use uuid::Uuid;
-use actix_web::{post,get,delete,HttpResponse,web,Responder};
-use log;
+use actix_web::{post,get,patch,delete,HttpResponse,web,Responder};
 use serde::{Serialize, Deserialize};
+use serde_json;
+
 use crate::model::users::User;
 use crate::AppState;
 
@@ -16,9 +17,7 @@ pub async fn create_user(
     body: web::Json<UserInputData>,
     data: web::Data<AppState>
 ) -> impl Responder{
-    
-    log::info!("adding a new user in database with user name: {:?} and email: {:?} "
-                ,body.user_name,body.user_email_id);
+
     let query_result = sqlx::query_as!(
         User,
         "INSERT INTO users(user_name,user_email_id) VALUES($1,$2) returning *",
@@ -28,13 +27,18 @@ pub async fn create_user(
         .await;
     
     match query_result{
-        Ok(_user) =>{ 
-            log::info!("New user details have been saved");        
-            return HttpResponse::Ok();
+        Ok(user) =>{ 
+            let query_response = serde_json::json!({
+                "status":"success",
+                "data":serde_json::json!({"user":user})
+            });        
+            return HttpResponse::Ok().json(query_response);
         },
         Err(err) => {
-            log::info!("Error :{}",err);
-        return HttpResponse::InternalServerError();
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "status": "failed",
+                "message":format!("{:?}",err)
+            }));
         }
     }
  
@@ -46,9 +50,7 @@ pub async fn get_user(
     data:web::Data<AppState>
 ) -> impl Responder {
     
-    let user_id = path.into_inner();
-    log::info!(" getting the user infomation with user_id: {} ",user_id);
-    
+    let user_id = path.into_inner();    
     let query_result = sqlx::query_as!(
         User,
         "SELECT * FROM users where user_id = $1",
@@ -58,13 +60,17 @@ pub async fn get_user(
         .await;
 
     match query_result{   
-        Ok(users) => {
-            log::info!("user info ok  ...");
-            HttpResponse::Ok().json(users)
+        Ok(user) => {
+            return HttpResponse::Ok().json(serde_json::json!({
+                "status":"success",
+                "data":serde_json::json!({"user":user})
+            }));
         },
         Err(err) => {
-            log::info!("Error: {} and INVALID USER ID: {}",err,user_id);
-            HttpResponse::NotFound().json("No user found invalid id : ")
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "status": "failed",
+                "message":format!("{:?}",err)
+            }));
         },
     }
 
@@ -78,7 +84,6 @@ pub async fn delete_user(
 ) ->impl Responder{
     
     let user_id = path.into_inner();
-    log::info!("deleting user details of user_id : {}",user_id);
     let query_result = sqlx::query!(
         "DELETE FROM users WHERE user_id = $1 returning *",
         user_id
@@ -88,34 +93,63 @@ pub async fn delete_user(
 
     match query_result{
         Ok(_query) => {
-            log::info!("USER DELETED..");
-            return  HttpResponse::Ok()
+            return  HttpResponse::Ok().json(serde_json::json!({
+                "status":"success",
+                "message":"user deleted.."
+            }));
         },
         Err(err) =>  {
-            log::info!("ERROR:{} IN DELETION INVALID USER ID : {} ",err,user_id);
-            return HttpResponse::InternalServerError()
-        },// here i can't the id not found error ...?
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "status":"failed",
+                "message":format!("{:?}",err)
+            }));
+        },
     }
   
+}
+
+#[patch("/update_user/{user_id}")]
+async fn update_user(
+    body:web::Json<UserInputData>,
+    path:web::Path<Uuid>,
+    data:web::Data<AppState>
+) -> impl Responder{
+
+    let user_id = path.into_inner();
+    let query_result = sqlx::query_as!(
+    User,
+    "update users set user_name = $1,user_email_id = $2 where user_id = $3 returning *",
+    body.user_name,
+    body.user_email_id,
+    user_id
+    )
+    .fetch_one(&data.db)
+    .await;
+
+    match query_result{
+        Ok(user) =>{
+            let query_response = serde_json::json!({
+                "status":"success",
+                "data":serde_json::json!({"user":user})
+            });
+            return HttpResponse::Ok().json(query_response);
+        },
+        Err(err) =>{
+            return HttpResponse::InternalServerError().json(
+                serde_json::json!({"status":"failed","message":format!("{:?}",err)})
+            );
+        }
+    }
+
 }
 
 pub fn config(conf: &mut web::ServiceConfig){
     let scope = web::scope("/account")
         .service(create_user)
         .service(get_user)
+        .service(update_user)
         .service(delete_user);
     conf.service(scope);
     
 }
 
-/*
-    todo!()
-    -> comments 
-    -> post
-    -> add match arms  --- done
-
-
-    note**:
-    migrations user_id replaced by id in users schema but not updated so ignore***
-
-*/

@@ -32,3 +32,21 @@ CREATE TABLE IF NOT EXISTS comments(
         FOREIGN KEY(post_id) 
         REFERENCES posts(id)
 );
+
+
+-- //for authentication example
+CREATE TABLE IF NOT EXISTS articles (
+  id SERIAL PRIMARY KEY,
+  title VARCHAR(55),
+  content VARCHAR(200),
+  published_by INT,
+  CONSTRAINT fk_articles_users_new 
+  FOREIGN KEY (published_by) 
+  REFERENCES users (id),
+);
+
+CREATE TABLE IF NOT EXISTS users_new (
+  id SERIAL PRIMARY KEY,
+  username VARCHAR(255),
+  password VARCHAR(255),
+);

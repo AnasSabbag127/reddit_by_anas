@@ -1,23 +1,27 @@
 mod api;
 mod model;
+use api::{users,post_info,comment};
 
-
-use actix_web::{web,App,HttpServer,HttpResponse,Responder,get};
+use actix_web::{
+    web,App,
+    HttpServer,HttpResponse,
+    Responder,get
+};
 use actix_web::middleware::Logger;
 use dotenv::dotenv;
 use env_logger;
 use sqlx::{postgres::PgPoolOptions,Pool,Postgres};
 
-use api::{users,post_info,comment};
 
-#[get("/health_check")]
-async fn health_check()->impl Responder{
-    HttpResponse::Ok()
-}
 
 pub struct AppState{
     #[allow(unused)]
     db:Pool<Postgres>
+}
+
+#[get("/health_check")]
+async fn health_check()->impl Responder{
+    HttpResponse::Ok()
 }
 
 
@@ -58,6 +62,8 @@ async fn main() -> std::io::Result<()> {
         .configure(users::config)
         .configure(post_info::config)
         .configure(comment::config)
+        
+
     })
     .bind("127.0.0.1:8000")?
     .run()

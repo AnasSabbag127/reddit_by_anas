@@ -10,8 +10,6 @@ pub struct CommentInputData{
     comment: String
 }
 
-
-
 #[post("/post_comment")]
 async fn post_comment(
     body:web::Json<CommentInputData>,

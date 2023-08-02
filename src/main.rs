@@ -1,6 +1,15 @@
 mod api;
 mod model;
-use api::{users,post_info,comment};
+mod authentication;
+use api::{users,post_info,comment,basic_auth};
+
+use authentication::validator::validator;
+// for authentication
+use actix_web_httpauth::middleware::HttpAuthentication;
+// use hmac::{Hmac,Mac};
+// use jwt::VerifyWithKey;
+use serde::{Serialize,Deserialize};
+// use sha2::Sha256;
 
 use actix_web::{
     web,App,
@@ -12,8 +21,7 @@ use dotenv::dotenv;
 use env_logger;
 use sqlx::{postgres::PgPoolOptions,Pool,Postgres};
 
-
-
+use uuid::Uuid;
 pub struct AppState{
     #[allow(unused)]
     db:Pool<Postgres>
@@ -24,6 +32,10 @@ async fn health_check()->impl Responder{
     HttpResponse::Ok()
 }
 
+#[derive(Serialize,Deserialize,Clone)]
+pub struct TokenClaims{
+    id:Uuid
+}
 
 
 #[actix_web::main]
@@ -55,18 +67,28 @@ async fn main() -> std::io::Result<()> {
     log::info!("DATABASE CONNECTED ");
 
     HttpServer::new(move||{
+        let bearer_middleware = HttpAuthentication::bearer(validator);
         App::new()
         .service(health_check)
         .wrap(Logger::default())
         .app_data(web::Data::new(AppState{db:pool.clone()}))
-        .configure(users::config)
-        .configure(post_info::config)
-        .configure(comment::config)
-        
-
+        .service(basic_auth::basic_auth)
+        .service(users::create_user)
+        // .configure(users::config)
+        .service(
+            web::scope("")
+            .wrap(bearer_middleware)
+            .configure(post_info::config)
+            .configure(users::config)
+            .configure(comment::config)
+        )
     })
     .bind("127.0.0.1:8000")?
     .run()
     .await
 
 }
+
+/*
+
+*/

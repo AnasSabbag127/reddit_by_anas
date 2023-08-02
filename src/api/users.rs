@@ -1,28 +1,40 @@
+use actix_web::web::ReqData;
+// use log::Record;
 use uuid::Uuid;
 use actix_web::{post,get,patch,delete,HttpResponse,web,Responder};
 use serde::{Serialize, Deserialize};
 use serde_json;
+use argonautica::Hasher;
 
-use crate::model::users::User;
-use crate::AppState;
+use crate::model::users::AccountUser;
+use crate::{AppState, TokenClaims};
 
 #[derive(Serialize, Deserialize)]
-pub struct UserInputData {
-    user_name: String,
-    user_email_id: String,
+pub struct AccountUserInputData {
+    username: String,
+    password:String,
 }
 
 #[post("/create_user")]
 pub async fn create_user(
-    body: web::Json<UserInputData>,
+    body: web::Json<AccountUserInputData>,
     data: web::Data<AppState>
 ) -> impl Responder{
 
-    let query_result = sqlx::query_as!(
-        User,
-        "INSERT INTO users(user_name,user_email_id) VALUES($1,$2) returning *",
-        body.user_name,
-        body.user_email_id)
+    let user = body.into_inner();
+    let hash_secret = std::env::var("HASH_SECRET").expect("HASH_SECRET must be set!");
+    let mut hasher = Hasher::default();
+    let hash = hasher
+        .with_password(user.password.clone())
+        .with_secret_key(hash_secret)
+        .hash()
+        .unwrap();
+
+    let query_result = sqlx::query_as::<_,AccountUser>(
+        "INSERT INTO account_user(username,password) VALUES($1,$2) returning *"
+        )
+        .bind(user.username)
+        .bind(hash)
         .fetch_one(&data.db)
         .await;
     
@@ -50,11 +62,11 @@ pub async fn get_user(
     data:web::Data<AppState>
 ) -> impl Responder {
     
-    let user_id = path.into_inner();    
+    let id = path.into_inner();    
     let query_result = sqlx::query_as!(
-        User,
-        "SELECT * FROM users where user_id = $1",
-        user_id
+        AccountUser,
+        "SELECT * FROM account_user where id = $1",
+        id
         )
         .fetch_one(&data.db)
         .await;
@@ -80,64 +92,89 @@ pub async fn get_user(
 #[delete("/delete_user/{user_id}")]
 pub async fn delete_user(
     path:web::Path<Uuid>,
+    req_user:Option<ReqData<TokenClaims>>,
     data:web::Data<AppState>
 ) ->impl Responder{
     
-    let user_id = path.into_inner();
-    let query_result = sqlx::query!(
-        "DELETE FROM users WHERE user_id = $1 returning *",
-        user_id
-    )
-    .fetch_one(&data.db)
-    .await;
+    match req_user{
+        Some(_user) => {   
+            let user_id = path.into_inner();
+            let query_result = sqlx::query_as!(
+                AccountUser,
+                "DELETE FROM account_user WHERE id = $1 returning *",
+                user_id
+            )
+            .fetch_one(&data.db)
+            .await;
 
-    match query_result{
-        Ok(_query) => {
-            return  HttpResponse::Ok().json(serde_json::json!({
-                "status":"success",
-                "message":"user deleted.."
-            }));
+            match query_result{
+                Ok(_query) => {
+                    return  HttpResponse::Ok().json(serde_json::json!({
+                        "status":"success",
+                        "message":"user deleted.."
+                    }));
+                },
+                Err(err) =>  {
+                    return HttpResponse::InternalServerError().json(serde_json::json!({
+                        "status":"failed",
+                        "message":format!("{:?}",err)
+                    }));
+                },
+            }
         },
-        Err(err) =>  {
-            return HttpResponse::InternalServerError().json(serde_json::json!({
-                "status":"failed",
-                "message":format!("{:?}",err)
-            }));
-        },
-    }
-  
+        None =>{
+            HttpResponse::Unauthorized().json("Unable to verify identity")
+        }
+  }
 }
 
 #[patch("/update_user/{user_id}")]
 async fn update_user(
-    body:web::Json<UserInputData>,
+    body:web::Json<AccountUserInputData>,
+    req_user:Option<ReqData<TokenClaims>>,
     path:web::Path<Uuid>,
     data:web::Data<AppState>
 ) -> impl Responder{
 
-    let user_id = path.into_inner();
-    let query_result = sqlx::query_as!(
-    User,
-    "update users set user_name = $1,user_email_id = $2 where user_id = $3 returning *",
-    body.user_name,
-    body.user_email_id,
-    user_id
-    )
-    .fetch_one(&data.db)
-    .await;
+    match req_user{
+        Some(_user)=> {
+            let user = body.into_inner();
+            let hash_secret = std::env::var("HASH_SECRET").expect("HASH_SECRET must be set!");
+            let mut hasher = Hasher::default();
+            let hash = hasher
+                .with_password(user.password.clone())
+                .with_secret_key(hash_secret)
+                .hash()
+                .unwrap();
+            
+            let user_id = path.into_inner();
+            let query_result = sqlx::query_as!(
+            AccountUser,
+            "update account_user set username = $1,password=$2 where id = $3 returning *",
+            user.username,
+            hash,
+            user_id
+            )
+            .fetch_one(&data.db)
+            .await;
 
-    match query_result{
-        Ok(user) =>{
-            let query_response = serde_json::json!({
-                "status":"success",
-                "data":serde_json::json!({"user":user})
-            });
-            return HttpResponse::Ok().json(query_response);
+            match query_result{
+                Ok(user) =>{
+                    let query_response = serde_json::json!({
+                        "status":"success",
+                        "data":serde_json::json!({"user":user})
+                    });
+                    return HttpResponse::Ok().json(query_response);
+                },
+                Err(err) =>{
+                    return HttpResponse::InternalServerError().json(
+                        serde_json::json!({"status":"failed","message":format!("{:?}",err)})
+                    );
+                }
+            }
         },
-        Err(err) =>{
-            return HttpResponse::InternalServerError().json(
-                serde_json::json!({"status":"failed","message":format!("{:?}",err)})
-            );
+        None => {
+            HttpResponse::Unauthorized().json("unable to verfiy identity..")
         }
     }
 
@@ -145,7 +182,7 @@ async fn update_user(
 
 pub fn config(conf: &mut web::ServiceConfig){
     let scope = web::scope("/account")
-        .service(create_user)
+        // .service(create_user)
         .service(get_user)
         .service(update_user)
         .service(delete_user);

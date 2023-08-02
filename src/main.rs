@@ -1,21 +1,27 @@
 mod api;
 mod model;
+use api::{users,post_info,comment};
 
-use actix_web::{web,App,HttpServer,HttpResponse,Responder,get};
+use actix_web::{
+    web,App,
+    HttpServer,HttpResponse,
+    Responder,get
+};
 use actix_web::middleware::Logger;
 use dotenv::dotenv;
 use env_logger;
 use sqlx::{postgres::PgPoolOptions,Pool,Postgres};
 
-use api::users;
-#[get("/health_check")]
-async fn health_check()->impl Responder{
-    HttpResponse::Ok()
-}
+
 
 pub struct AppState{
     #[allow(unused)]
     db:Pool<Postgres>
+}
+
+#[get("/health_check")]
+async fn health_check()->impl Responder{
+    HttpResponse::Ok()
 }
 
 
@@ -24,8 +30,8 @@ pub struct AppState{
 async fn main() -> std::io::Result<()> {
     println!("Hello, world!");
 
-    if std::env::var_os("RUST_LOg").is_none(){
-        std::env::set_var("RUST_LOG", "actix_web=info");
+    if std::env::var_os("RUST_LOG").is_none(){
+        std::env::set_var("RUST_LOG", "info");
     }
     dotenv().ok();
     env_logger::init();
@@ -46,7 +52,7 @@ async fn main() -> std::io::Result<()> {
                     }
                 };
     
-    println!("DATABASE CONNECTED ");
+    log::info!("DATABASE CONNECTED ");
 
     HttpServer::new(move||{
         App::new()
@@ -54,6 +60,10 @@ async fn main() -> std::io::Result<()> {
         .wrap(Logger::default())
         .app_data(web::Data::new(AppState{db:pool.clone()}))
         .configure(users::config)
+        .configure(post_info::config)
+        .configure(comment::config)
+        
+
     })
     .bind("127.0.0.1:8000")?
     .run()

@@ -1,8 +1,10 @@
 use uuid::Uuid;
+use serde::{Serialize,Deserialize};
 
+#[derive(Serialize,Deserialize)]
 pub struct Post{
-    pub post_id: Uuid,
-    pub user_id:Uuid,
-    pub post_title: String,
-    pub post_text: String
+    pub id: Uuid,
+    pub user_id:Option<Uuid>,
+    pub post_title: Option<String>,
+    pub post_text: Option<String>,
 }

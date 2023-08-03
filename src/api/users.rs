@@ -15,7 +15,7 @@ pub struct AccountUserInputData {
     password:String,
 }
 
-#[post("/create_user")]
+#[post("/register_user")]
 pub async fn create_user(
     body: web::Json<AccountUserInputData>,
     data: web::Data<AppState>
@@ -182,7 +182,6 @@ async fn update_user(
 
 pub fn config(conf: &mut web::ServiceConfig){
     let scope = web::scope("/account")
-        // .service(create_user)
         .service(get_user)
         .service(update_user)
         .service(delete_user);

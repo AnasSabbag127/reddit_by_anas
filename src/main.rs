@@ -74,7 +74,6 @@ async fn main() -> std::io::Result<()> {
         .app_data(web::Data::new(AppState{db:pool.clone()}))
         .service(basic_auth::basic_auth)
         .service(users::create_user)
-        // .configure(users::config)
         .service(
             web::scope("")
             .wrap(bearer_middleware)

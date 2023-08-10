@@ -7,7 +7,8 @@ use serde_json;
 pub struct CommentInputData{
     user_id: Uuid,
     post_id: Uuid,
-    comment: String
+    comment: String,
+    reply_on_comment: Option<Uuid>
 }
 
 #[post("/post_comment")]
@@ -18,31 +19,64 @@ async fn post_comment(
 )->impl Responder{
     match req_user{
         Some(_user)=>{
-            let query_result = sqlx::query_as!(
-                Comments,
-                "INSERT INTO comments(user_id,post_id,comment) VALUES($1,$2,$3) returning *",
-                body.user_id,
-                body.post_id,
-                body.comment,    
-            )
-            .fetch_one(&data.db)
-            .await;
-        
-            match query_result{
-                Ok(comment) =>{ 
-                    let query_response = serde_json::json!({
-                        "status":"success",
-                        "data":serde_json::json!({"comment":comment})
-                    });        
-                    return HttpResponse::Ok().json(query_response);
+            let reply_on_comment = body.reply_on_comment.clone();
+            match reply_on_comment{
+                Some(comment_id)=>{
+                    let query_result = sqlx::query_as::<_,Comments>(
+                    "INSERT INTO comments(user_id,post_id,comment,reply_on_comment) VALUES($1,$2,$3,$4) returning *"  
+                    )
+                    .bind(body.user_id)
+                    .bind(body.post_id)
+                    .bind(body.comment.clone())
+                    .bind(comment_id)
+                    .fetch_one(&data.db)
+                    .await;
+                    match query_result{
+                        Ok(comment) =>{ 
+                            let query_response = serde_json::json!({
+                                "status":"success",
+                                "data":serde_json::json!({"comment":comment})
+                            });        
+                            return HttpResponse::Ok().json(query_response);
+                        },
+                        Err(err) => {
+                            return HttpResponse::InternalServerError().json(serde_json::json!({
+                                "status": "failed",
+                                "message":format!("{:?}",err)
+                            }));
+                        }
+                    }
+
                 },
-                Err(err) => {
-                    return HttpResponse::InternalServerError().json(serde_json::json!({
-                        "status": "failed",
-                        "message":format!("{:?}",err)
-                    }));
+                None=>{
+                    //thats mean new explicit comment on post
+                    let query_result = sqlx::query_as!(
+                        Comments,
+                        "INSERT INTO comments(user_id,post_id,comment) VALUES($1,$2,$3) returning *",
+                        body.user_id,
+                        body.post_id,
+                        body.comment,    
+                    )
+                    .fetch_one(&data.db)
+                    .await;
+                
+                    match query_result{
+                        Ok(comment) =>{ 
+                            let query_response = serde_json::json!({
+                                "status":"success",
+                                "data":serde_json::json!({"comment":comment})
+                            });        
+                            return HttpResponse::Ok().json(query_response);
+                        },
+                        Err(err) => {
+                            return HttpResponse::InternalServerError().json(serde_json::json!({
+                                "status": "failed",
+                                "message":format!("{:?}",err)
+                            }));
+                        }
+                    }
                 }
-            }    
+            }
         },
         None => {
             HttpResponse::Unauthorized().json("unable to verify identity")

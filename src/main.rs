@@ -1,21 +1,27 @@
 mod api;
 mod model;
 mod authentication;
-use api::{users,post_info,comment,basic_auth};
-
+mod my_activity;
+mod connections;
+mod web_socket_connections;
+mod multimedia_api;
+use actix::Actor;
+use api::{users,post_info,comment,basic_auth,post_images};
+use my_activity::configure_activity;
 use authentication::validator::validator;
-// for authentication
+use connections::create_connections;
+use multimedia_api::post_image;
+
+use web_socket_connections::{lobby::Lobby,start_connection::start_connection};
 use actix_web_httpauth::middleware::HttpAuthentication;
-// use hmac::{Hmac,Mac};
-// use jwt::VerifyWithKey;
 use serde::{Serialize,Deserialize};
-// use sha2::Sha256;
+
 
 use actix_web::{
     web,App,
-    HttpServer,HttpResponse,
-    Responder,get
+    HttpServer
 };
+
 use actix_web::middleware::Logger;
 use dotenv::dotenv;
 use env_logger;
@@ -27,10 +33,6 @@ pub struct AppState{
     db:Pool<Postgres>
 }
 
-#[get("/health_check")]
-async fn health_check()->impl Responder{
-    HttpResponse::Ok()
-}
 
 #[derive(Serialize,Deserialize,Clone)]
 pub struct TokenClaims{
@@ -48,6 +50,7 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok();
     env_logger::init();
 
+    let chat_server = Lobby::default().start();
     let database_url = std::env::var("DATABASE_URL").expect("database url must be set");
     let pool = match PgPoolOptions::new()
                 .max_connections(10)
@@ -69,24 +72,32 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move||{
         let bearer_middleware = HttpAuthentication::bearer(validator);
         App::new()
-        .service(health_check)
         .wrap(Logger::default())
         .app_data(web::Data::new(AppState{db:pool.clone()}))
         .service(basic_auth::basic_auth)
         .service(users::create_user)
+        .service(post_images::upload_image)
+        .service(post_images::delete_image)
+        .service(post_images::get_image)
         .service(
             web::scope("")
             .wrap(bearer_middleware)
             .configure(post_info::config)
             .configure(users::config)
             .configure(comment::config)
+            .configure(configure_activity::config)
+            .configure(create_connections::config)
         )
+        .app_data(chat_server.clone())
+        .service(start_connection)
+        
     })
     .bind("127.0.0.1:8000")?
     .run()
     .await
 
 }
+
 
 /*
 

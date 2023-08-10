@@ -9,3 +9,10 @@ pub struct Post{
     pub post_title: Option<String>,
     pub post_text: Option<String>,
 }
+
+#[derive(Serialize,Deserialize,FromRow)]
+pub struct PostImage{
+    pub id: Uuid,
+    pub post_id:Option<Uuid>,
+    pub image:Vec<u8>,
+}

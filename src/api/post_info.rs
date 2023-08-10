@@ -63,10 +63,10 @@ pub async fn get_post(
     match user_req{
         Some(_user)=>{
             let post_id = path.into_inner();
-            let query_result = sqlx::query_as!(
-                Post,
-                "select * from posts where id = $1",
-                post_id)
+            let query_result = sqlx::query_as::<_,Post>(
+                "select * from posts where id = $1"
+                )
+                .bind(post_id)
                 .fetch_one(&data.db)
                 .await;
 
@@ -140,13 +140,14 @@ async fn update_post(
     match req_user{
         Some(_user)=>{
             let post_id = path.into_inner();
-            let query_result = sqlx::query_as!(
-            Post,
-            "update posts set post_title = $1,post_text = $2 where id = $3 returning *",
-            body.post_title,
-            body.post_text,
-            post_id
+            let user = body.into_inner();
+            let query_result = sqlx::query_as::<_,Post>(
+            // Post,
+            "update posts set post_title = $1,post_text = $2 where id = $3 returning *"
             )
+            .bind(user.post_title)
+            .bind(user.post_text)
+            .bind(post_id)
             .fetch_one(&data.db)
             .await;
             match query_result{

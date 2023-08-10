@@ -1,5 +1,4 @@
 use actix_web::web::ReqData;
-// use log::Record;
 use uuid::Uuid;
 use actix_web::{post,get,patch,delete,HttpResponse,web,Responder};
 use serde::{Serialize, Deserialize};
@@ -63,11 +62,10 @@ pub async fn get_user(
 ) -> impl Responder {
     
     let id = path.into_inner();    
-    let query_result = sqlx::query_as!(
-        AccountUser,
-        "SELECT * FROM account_user where id = $1",
-        id
+    let query_result:Result<AccountUser, sqlx::Error> = sqlx::query_as::<_,AccountUser>(
+        "SELECT id,username FROM account_user where id = $1 return id,username"
         )
+        .bind(id)
         .fetch_one(&data.db)
         .await;
 
@@ -99,11 +97,10 @@ pub async fn delete_user(
     match req_user{
         Some(_user) => {   
             let user_id = path.into_inner();
-            let query_result = sqlx::query_as!(
-                AccountUser,
+            let query_result = sqlx::query_as::<_,AccountUser>(
                 "DELETE FROM account_user WHERE id = $1 returning *",
-                user_id
             )
+            .bind(user_id)
             .fetch_one(&data.db)
             .await;
 
@@ -148,13 +145,12 @@ async fn update_user(
                 .unwrap();
             
             let user_id = path.into_inner();
-            let query_result = sqlx::query_as!(
-            AccountUser,
-            "update account_user set username = $1,password=$2 where id = $3 returning *",
-            user.username,
-            hash,
-            user_id
+            let query_result = sqlx::query_as::<_,AccountUser>(
+            "update account_user set username = $1,password=$2 where id = $3 returning *"
             )
+            .bind(user.username)
+            .bind(hash)
+            .bind(user_id)
             .fetch_one(&data.db)
             .await;
 

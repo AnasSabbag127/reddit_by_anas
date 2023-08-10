@@ -55,8 +55,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS account_user (
   id Uuid PRIMARY KEY NOT NULL DEFAULT (uuid_generate_v4()),
-  username VARCHAR(255),
-  password VARCHAR(255)
+  username VARCHAR(255) NOT NULL UNIQUE,
+  password VARCHAR(255) NOT NULL UNIQUE
 );
 
 
@@ -64,8 +64,8 @@ CREATE TABLE
     IF NOT EXISTS posts(
         id Uuid PRIMARY KEY NOT NULL DEFAULT (uuid_generate_v4()),
         user_id Uuid,
-        post_title VARCHAR(40),
-        post_text VARCHAR(200),
+        post_title VARCHAR(40) NOT NULL UNIQUE,
+        post_text VARCHAR(200) NOT NULL,
         CONSTRAINT fk_post
         FOREIGN KEY(user_id)
         REFERENCES account_user(id)
@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS comments(
     user_id UUID,
     post_id UUID,
     comment VARCHAR(100) NOT NULL,
+    reply_on_comment UUID,
     CONSTRAINT fk_user
         FOREIGN KEY(user_id)
         REFERENCES account_user(id),
@@ -83,3 +84,21 @@ CREATE TABLE IF NOT EXISTS comments(
         FOREIGN KEY(post_id) 
         REFERENCES posts(id)
 );
+
+CREATE TABLE 
+    IF NOT EXISTS followers(
+        user_id UUID NOT NULL,
+        follower_id UUID NOT NULL,
+        PRIMARY KEY(user_id,follower_id),
+        FOREIGN KEY (user_id) REFERENCES account_user(id),
+        FOREIGN KEY (follow) REFERENCES account_user(id) 
+    );
+
+CREATE TABLE 
+    IF NOT EXISTS posts_image(
+        id UUID PRIMARY KEY NOT NULL DEFAULT (uuid_generate_v4()),
+        post_id UUID NOT NULL,
+        image NOT NULL BYTEA,
+        PRIMARY KEY(id),
+        FOREIGN KEY (post_id) REFERENCES posts(id)
+    );
